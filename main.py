@@ -1,6 +1,9 @@
+from PIL import Image, ImageDraw
+
 class Scene:
-    def __init__(self, screen):
-        self.screen = screen
+    def __init__(self, screen, background_colour = (0,0,0)):
+        self.screen_width, self.screen_height = screen
+        self.background_colour = background_colour
         self.objects = []
         self.lights = []
 
@@ -11,7 +14,9 @@ class Scene:
         self.lights.append(light)
 
     def render(self, output_file):
-        pass
+        image = Image.new('RGB', (self.screen_width, self.screen_height), self.background_colour)
+        image.save(output_file)
+
 
 class Sphere:
     pass
