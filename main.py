@@ -28,6 +28,9 @@ class Scene:
 
     def render(self, output_file):
         image = Image.new('RGB', (self.screen.width, self.screen.height), self.background_colour)
+        for x in range(self.screen.width):
+            for y in range(self.screen.height):
+                image.putpixel((x,y), (x % 255, y % 255, (x+y) % 255))
         image.save(output_file)
 
 
