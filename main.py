@@ -20,10 +20,19 @@ class Point:
             math.pow(self.z - other.z, 2)
         )
 
-class Line:
-    def __init__(self, origin, target):
-        self.origin = origin
-        self.target = target
+class Vector:
+    def __init__(self, x, y, z):
+        self.x = x
+        self.y = y
+        self.z = z
+
+    @staticmethod
+    def from_points(p1, p2):
+        return Vector(p2.x - p1.x, p2.y - p1.y, p2.z - p1.z)
+
+    def dot_product(self, other):
+        return self.x * other.x + self.y + other.y + self.z * other.z
+
 
 class Scene:
     def __init__(self, screen, camera_position, background_colour):
@@ -41,7 +50,7 @@ class Scene:
 
     def _calculate_pixel_colour(self, x, y):
         screen_pixel_position = Point(x - self.screen.width / 2, y - self.screen.height / 2, self.screen.distance)
-        camera_to_pixel = Line(self.camera_position, screen_pixel_position)
+        camera_to_pixel = Vector.from_points(self.camera_position, screen_pixel_position)
 
         intersection_points = []
         for object in self.objects:
@@ -63,13 +72,14 @@ class Scene:
         image.save(output_file)
 
 
-class Sphere:
-    def __init__(self, center, radius, colour):
-        self.center = center
-        self.radius = radius
+class Rectangle:
+    def __init__(self, p1, p2, p3, colour):
+        self.p1 = p1
+        self.p2 = p2
+        self.p3 = p3
         self.colour = colour
 
-    def get_intersection_points(self, line):
+    def get_intersection_points(self, vector):
         return [] #TODO
 
 class Light:
@@ -90,8 +100,8 @@ COLOUR_RED = (255, 0, 0)
 
 scene = Scene(screen, camera_position, COLOUR_BLACK)
 
-sphere1 = Sphere(Point(0, 0, 1000), 300, COLOUR_RED)
-scene.add_object(sphere1)
+rectange1 = Rectangle(Point(100, 100, 1500), Point(100, 200, 1500), Point(200, 200, 1500), COLOUR_RED)
+scene.add_object(rectange1)
 
 scene.add_light(Light())
 
