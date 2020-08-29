@@ -37,7 +37,7 @@ class Vector:
         return Vector(p2.x - p1.x, p2.y - p1.y, p2.z - p1.z)
 
     def dot_product(self, other):
-        return self.x * other.x + self.y + other.y + self.z * other.z
+        return self.x * other.x + self.y * other.y + self.z * other.z
 
     def cross_product(self, other):
         return Vector(
@@ -112,7 +112,7 @@ class Rectangle:
 
     def get_intersection_point(self, line):
         n_dot_u = self.plane_normal.dot_product(line.vector)
-        if abs(n_dot_u) < 0.01:
+        if not n_dot_u:
             return None
 
         w = Vector.from_points(self.p1, line.point)
