@@ -36,6 +36,14 @@ class Vector:
     def from_points(p1, p2):
         return Vector(p2.x - p1.x, p2.y - p1.y, p2.z - p1.z)
 
+    def unit(self):
+        magnitude = self.magnitude()
+        return Vector(
+            self.x / magnitude,
+            self.y / magnitude,
+            self.z / magnitude,
+        )
+
     def dot_product(self, other):
         return self.x * other.x + self.y * other.y + self.z * other.z
 
@@ -111,16 +119,18 @@ class Rectangle:
         self.plane_normal = p1_p2.cross_product(p1_p3)
 
     def get_intersection_point(self, line):
-        n_dot_u = self.plane_normal.dot_product(line.vector)
+        line_unit_vector = line.vector.unit()
+
+        n_dot_u = self.plane_normal.dot_product(line_unit_vector)
         if not n_dot_u:
             return None
 
         w = Vector.from_points(self.p1, line.point)
         s1 = -self.plane_normal.dot_product(w) / n_dot_u
         intersection = Point(
-            w.x + s1 * line.vector.x + self.p1.x,
-            w.y + s1 * line.vector.y + self.p1.y,
-            w.z + s1 * line.vector.z + self.p1.z
+            w.x + s1 * line_unit_vector.x + self.p1.x,
+            w.y + s1 * line_unit_vector.y + self.p1.y,
+            w.z + s1 * line_unit_vector.z + self.p1.z
         )
         a_m = Vector.from_points(self.p1, intersection)
         a_b = Vector.from_points(self.p1, self.p2)
@@ -131,7 +141,7 @@ class Rectangle:
         am_dot_ad = a_m.dot_product(a_d)
         ad_dot_ad = a_d.dot_product(a_d)
 
-        if (0 < am_dot_ab < ab_dot_ab) or (0 < am_dot_ad < ad_dot_ad):
+        if (0 < am_dot_ab < ab_dot_ab) and (0 < am_dot_ad < ad_dot_ad):
             return intersection
 
 
