@@ -1,6 +1,7 @@
 import math
 from PIL import Image, ImageDraw
 
+EPSILON = 0.1
 
 class Screen:
     def __init__(self, width, height, distance):
@@ -24,6 +25,13 @@ class Point:
 
     def distance_to(self, other):
         return self.vector_to(other).magnitude()
+
+    def move(self, movement_vector):
+        return Point(
+            self.x + movement_vector.x,
+            self.y + movement_vector.y,
+            self.z + movement_vector.z
+        )
 
 
 class Vector:
@@ -59,6 +67,12 @@ class Vector:
             math.pow(self.x, 2) + math.pow(self.y, 2) + math.pow(self.z, 2)
         )
 
+    def negate(self):
+        return Vector(-self.x, -self.y, -self.z)
+
+    def multiply(self, factor):
+        return Vector(self.x * factor, self.y * factor, self.z * factor)
+
 
 class Line:
     def __init__(self, vector, point):
@@ -80,6 +94,16 @@ class Scene:
     def add_light(self, light):
         self.lights.append(light)
 
+    def _is_illuminated(self, target_object, point):
+        for light in self.lights:
+            shifted_point = target_object.get_camera_side_shifted_point(point, self.camera_position)
+            line_from_point_to_light = Line(Vector.from_points(shifted_point, light.position), shifted_point)
+            for object in self.objects:
+                if object.get_intersection_point(line_from_point_to_light):
+                    return False
+
+        return True
+
     def _calculate_pixel_colour(self, x, y):
         screen_pixel_position = Point(x - self.screen.width / 2, y - self.screen.height / 2, self.screen.distance)
         camera_to_pixel_vector = Vector.from_points(self.camera_position, screen_pixel_position)
@@ -94,9 +118,10 @@ class Scene:
 
         if intersection_points:
             closest_intersection = min(intersection_points, key=lambda p: p[1].distance_to(self.camera_position))
-            return closest_intersection[0].colour
-        else:
-            return self.background_colour
+            if self._is_illuminated(*closest_intersection):
+                return closest_intersection[0].colour
+
+        return self.background_colour
 
     def render(self, output_file):
         image = Image.new('RGB', (self.screen.width, self.screen.height), self.background_colour)
@@ -144,9 +169,23 @@ class Rectangle:
         if (0 < am_dot_ab < ab_dot_ab) and (0 < am_dot_ad < ad_dot_ad):
             return intersection
 
+    def get_camera_side_shifted_point(self, point, camera_position):
+        shift_vector = self.plane_normal.unit().multiply(EPSILON)
+
+        p_shifted_1 = point.move(shift_vector)
+        p_shifted_2 = point.move(shift_vector.negate())
+
+        p1_camera_distance = p_shifted_1.distance_to(camera_position)
+        p2_camera_distance = p_shifted_2.distance_to(camera_position)
+
+        return shift_vector if p1_camera_distance < p2_camera_distance else shift_vector.negate()
+
 
 class Light:
-    pass
+    def __init__(self, position, colour):
+        self.position = position
+        self.colour = colour
+
 
 SCREEN_WIDTH = 400
 SCREEN_HEIGHT = 200
@@ -160,12 +199,14 @@ camera_position = Point(CAMERA_X, CAMERA_Y, CAMERA_Z)
 
 COLOUR_BLACK = (0, 0, 0)
 COLOUR_RED = (255, 0, 0)
+COLOUR_WHITE = (255, 255, 255)
 
 scene = Scene(screen, camera_position, COLOUR_BLACK)
 
 rectange1 = Rectangle(Point(-100, -100, 1500), Point(100, -100, 1500), Point(-100, 100, 1500), COLOUR_RED)
 scene.add_object(rectange1)
 
-scene.add_light(Light())
+light_position = Point(-100, -100, 1200)
+scene.add_light(Light(light_position, COLOUR_WHITE))
 
 scene.render('output.png')
