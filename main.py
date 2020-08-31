@@ -33,6 +33,9 @@ class Point:
             self.z + movement_vector.z
         )
 
+    def __str__(self):
+        return '({},{},{})'.format(self.x, self.y, self.z)
+
 
 class Vector:
     def __init__(self, x, y, z):
@@ -73,12 +76,17 @@ class Vector:
     def multiply(self, factor):
         return Vector(self.x * factor, self.y * factor, self.z * factor)
 
+    def __str__(self):
+        return '<{},{},{}>'.format(self.x, self.y, self.z)
+
 
 class Line:
     def __init__(self, vector, point):
         self.vector = vector
         self.point = point
 
+    def __str__(self):
+        return '{} --- {}'.format(self.point, self.vector)
 
 class Scene:
     def __init__(self, screen, camera_position, background_colour):
@@ -95,6 +103,9 @@ class Scene:
         self.lights.append(light)
 
     def _is_illuminated(self, target_object, point):
+        if not self.lights:
+            return False
+
         for light in self.lights:
             shifted_point = target_object.get_camera_side_shifted_point(point, self.camera_position)
             line_from_point_to_light = Line(Vector.from_points(shifted_point, light.position), shifted_point)
@@ -148,10 +159,15 @@ class Rectangle:
 
         n_dot_u = self.plane_normal.dot_product(line_unit_vector)
         if not n_dot_u:
+            # The line is parallel to the plane
             return None
 
         w = Vector.from_points(self.p1, line.point)
         s1 = -self.plane_normal.dot_product(w) / n_dot_u
+        if s1 < 0:
+            # The intersection point is on the wrong side of line.point
+            return None
+
         intersection = Point(
             w.x + s1 * line_unit_vector.x + self.p1.x,
             w.y + s1 * line_unit_vector.y + self.p1.y,
@@ -178,7 +194,7 @@ class Rectangle:
         p1_camera_distance = p_shifted_1.distance_to(camera_position)
         p2_camera_distance = p_shifted_2.distance_to(camera_position)
 
-        return shift_vector if p1_camera_distance < p2_camera_distance else shift_vector.negate()
+        return p_shifted_1 if p1_camera_distance < p2_camera_distance else p_shifted_2
 
 
 class Light:
@@ -205,6 +221,9 @@ scene = Scene(screen, camera_position, COLOUR_BLACK)
 
 rectange1 = Rectangle(Point(-100, -100, 1500), Point(100, -100, 1500), Point(-100, 100, 1500), COLOUR_RED)
 scene.add_object(rectange1)
+
+rectange2 = Rectangle(Point(-50, -50, 1400), Point(-20, -50, 1400), Point(-50, -20, 1400), COLOUR_WHITE)
+scene.add_object(rectange2)
 
 light_position = Point(-100, -100, 1200)
 scene.add_light(Light(light_position, COLOUR_WHITE))
