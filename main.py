@@ -74,7 +74,16 @@ class Vector:
         return Vector(-self.x, -self.y, -self.z)
 
     def multiply(self, factor):
-        return Vector(self.x * factor, self.y * factor, self.z * factor)
+        return self.multiply_by_vector(Vector(factor, factor, factor))
+
+    def multiply_by_vector(self, other):
+        return Vector(self.x * other.x, self.y * other.y, self.z * other.z)
+
+    def add_to_vector(self, other):
+        return Vector(self.x + other.x, self.y + other.y, self.z + other.z)
+
+    def tuple(self):
+        return self.x, self.y, self.z
 
     def __str__(self):
         return '<{},{},{}>'.format(self.x, self.y, self.z)
@@ -102,18 +111,51 @@ class Scene:
     def add_light(self, light):
         self.lights.append(light)
 
-    def _is_illuminated(self, target_object, point):
+    def _calculate_illumination(self, target_object, point):
         if not self.lights:
-            return False
+            return []
 
+        illumination = []
         for light in self.lights:
             shifted_point = target_object.get_camera_side_shifted_point(point, self.camera_position)
             line_from_point_to_light = Line(Vector.from_points(shifted_point, light.position), shifted_point)
+
+            is_illuminated = True
             for object in self.objects:
                 if object.get_intersection_point(line_from_point_to_light):
-                    return False
+                    is_illuminated = False
+                    break
 
-        return True
+            if is_illuminated:
+                illumination.append((
+                    target_object,
+                    light,
+                    line_from_point_to_light.vector.unit(),
+                    target_object.plane_normal.unit(),
+                    Vector.from_points(shifted_point, self.camera_position).unit()
+                ))
+
+        return illumination
+
+    def _blinn_phong_colour(self, illumination_list):
+        total_illumination = Vector(0, 0, 0)
+        for illumination in illumination_list:
+            object, light, point_to_light_vector, surface_normal_vector, point_to_camera_vector = illumination
+
+            ambient = object.ambient.multiply_by_vector(light.ambient)
+
+            l_dot_n = abs(point_to_light_vector.dot_product(surface_normal_vector))
+            diffuse = object.diffuse.multiply_by_vector(light.diffuse).multiply(l_dot_n)
+
+            l_v_unit = point_to_light_vector.add_to_vector(point_to_camera_vector).unit()
+            specular_factor = abs(surface_normal_vector.dot_product(l_v_unit) ** (object.alpha / 4))
+            specular = object.specular.multiply_by_vector(light.specular).multiply(specular_factor)
+
+            total_illumination = total_illumination.add_to_vector(ambient).add_to_vector(diffuse).add_to_vector(specular)
+
+        r, g, b = total_illumination.multiply(255).tuple()
+
+        return int(min(255,r)), int(min(255,g)), int(min(255,b))
 
     def _calculate_pixel_colour(self, x, y):
         screen_pixel_position = Point(x - self.screen.width / 2, y - self.screen.height / 2, self.screen.distance)
@@ -129,8 +171,9 @@ class Scene:
 
         if intersection_points:
             closest_intersection = min(intersection_points, key=lambda p: p[1].distance_to(self.camera_position))
-            if self._is_illuminated(*closest_intersection):
-                return closest_intersection[0].colour
+            illumination = self._calculate_illumination(*closest_intersection)
+            if illumination:
+                return self._blinn_phong_colour(illumination)
 
         return self.background_colour
 
@@ -138,17 +181,20 @@ class Scene:
         image = Image.new('RGB', (self.screen.width, self.screen.height), self.background_colour)
         for x in range(self.screen.width):
             for y in range(self.screen.height):
-                image.putpixel((x,y), self._calculate_pixel_colour(x, y))
+                image.putpixel((x, screen.height - y - 1), self._calculate_pixel_colour(x, y))
 
         image.save(output_file)
 
 
 class Rectangle:
-    def __init__(self, p1, p2, p3, colour):
+    def __init__(self, p1, p2, p3):
         self.p1 = p1
         self.p2 = p2
         self.p3 = p3
-        self.colour = colour
+        self.ambient = Vector(0.1, 0, 0)
+        self.diffuse = Vector(0.7, 0, 0)
+        self.specular = Vector(1, 1, 1)
+        self.alpha = 100
 
         p1_p2 = self.p1.vector_to(self.p2)
         p1_p3 = self.p1.vector_to(self.p3)
@@ -198,34 +244,66 @@ class Rectangle:
 
 
 class Light:
-    def __init__(self, position, colour):
+    def __init__(self, position):
         self.position = position
-        self.colour = colour
+        self.ambient = Vector(1, 1, 1)
+        self.diffuse = Vector(1, 1, 1)
+        self.specular = Vector(1, 1, 1)
 
 
-SCREEN_WIDTH = 400
-SCREEN_HEIGHT = 200
+SCREEN_WIDTH = 800
+SCREEN_HEIGHT = 400
 SCREEN_DISTANCE = 1000
 screen = Screen(SCREEN_WIDTH, SCREEN_HEIGHT, SCREEN_DISTANCE)
 
 CAMERA_X = 0
-CAMERA_Y = 0
+CAMERA_Y = SCREEN_HEIGHT/2
 CAMERA_Z = 0
 camera_position = Point(CAMERA_X, CAMERA_Y, CAMERA_Z)
 
 COLOUR_BLACK = (0, 0, 0)
-COLOUR_RED = (255, 0, 0)
-COLOUR_WHITE = (255, 255, 255)
 
 scene = Scene(screen, camera_position, COLOUR_BLACK)
 
-rectange1 = Rectangle(Point(-100, -100, 1500), Point(100, -100, 1500), Point(-100, 100, 1500), COLOUR_RED)
-scene.add_object(rectange1)
+floor = Rectangle(
+    Point(-SCREEN_WIDTH/2, -SCREEN_HEIGHT/2, SCREEN_DISTANCE),
+    Point(-SCREEN_WIDTH/2, -SCREEN_HEIGHT/2, SCREEN_DISTANCE + SCREEN_WIDTH * 20),
+    Point( SCREEN_WIDTH/2, -SCREEN_HEIGHT/2, SCREEN_DISTANCE)
+)
+scene.add_object(floor)
 
-rectange2 = Rectangle(Point(-50, -50, 1400), Point(-20, -50, 1400), Point(-50, -20, 1400), COLOUR_WHITE)
-scene.add_object(rectange2)
+s = 50
+cube_center = (0, -SCREEN_HEIGHT/2 + s, SCREEN_DISTANCE + SCREEN_WIDTH)
 
-light_position = Point(-100, -100, 1200)
-scene.add_light(Light(light_position, COLOUR_WHITE))
+def point(x,y,z):
+    return Point(cube_center[0] + x + 5, cube_center[1] + y + 5, cube_center[2] + z + 5)
 
-scene.render('output.png')
+top_face = Rectangle(
+    point(-s, s, 0),
+    point(0, s, -s),
+    point(0, s, s)
+)
+scene.add_object(top_face)
+
+right_face = Rectangle(
+    point(0, s, -s),
+    point(0, s * (1 - math.sqrt(2)), -s),
+    point(s, s, 0)
+)
+scene.add_object(right_face)
+
+left_face = Rectangle(
+    point(0, s, -s),
+    point(0,  s * (1 - math.sqrt(2)), -s),
+    point(-s, s, 0)
+)
+scene.add_object(left_face)
+
+light_position = Point(SCREEN_WIDTH/4,SCREEN_HEIGHT,SCREEN_DISTANCE / 2)
+light = Light(light_position)
+scene.add_light(light)
+
+for i in range(1000):
+    light.position.z += 10
+    light.position.x -= 1
+    scene.render('output{:05}.png'.format(i))
