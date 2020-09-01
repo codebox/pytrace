@@ -3,6 +3,7 @@ from PIL import Image, ImageDraw
 
 EPSILON = 0.1
 
+
 class Screen:
     def __init__(self, width, height, distance):
         self.width = width
@@ -97,6 +98,7 @@ class Line:
     def __str__(self):
         return '{} --- {}'.format(self.point, self.vector)
 
+
 class Scene:
     def __init__(self, screen, camera_position, background_colour):
         self.screen = screen
@@ -107,6 +109,9 @@ class Scene:
 
     def add_object(self, object):
         self.objects.append(object)
+
+    def clear_objects(self):
+        self.objects = []
 
     def add_light(self, light):
         self.lights.append(light)
@@ -178,23 +183,33 @@ class Scene:
         return self.background_colour
 
     def render(self, output_file):
-        image = Image.new('RGB', (self.screen.width, self.screen.height), self.background_colour)
-        for x in range(self.screen.width):
-            for y in range(self.screen.height):
-                image.putpixel((x, screen.height - y - 1), self._calculate_pixel_colour(x, y))
+        image = Image.new('RGB', (self.screen.width * SCALE, self.screen.height * SCALE), self.background_colour)
+        for x in range(self.screen.width * SCALE):
+            for y in range(self.screen.height * SCALE):
+                scaled_x = x / SCALE
+                scaled_y = y / SCALE
+                image.putpixel((x, screen.height * SCALE - y - 1), self._calculate_pixel_colour(scaled_x, scaled_y))
 
         image.save(output_file)
 
 
+class Material:
+    def __init__(self, ambient, diffuse, specular, alpha):
+        self.ambient = Vector(*ambient)
+        self.diffuse = Vector(*diffuse)
+        self.specular = Vector(*specular)
+        self.alpha = alpha
+
+
 class Rectangle:
-    def __init__(self, p1, p2, p3):
+    def __init__(self, p1, p2, p3, material):
         self.p1 = p1
         self.p2 = p2
         self.p3 = p3
-        self.ambient = Vector(0.1, 0, 0)
-        self.diffuse = Vector(0.7, 0, 0)
-        self.specular = Vector(1, 1, 1)
-        self.alpha = 100
+        self.ambient = material.ambient
+        self.diffuse = material.diffuse
+        self.specular = material.specular
+        self.alpha = material.alpha
 
         p1_p2 = self.p1.vector_to(self.p2)
         p1_p3 = self.p1.vector_to(self.p3)
@@ -242,6 +257,8 @@ class Rectangle:
 
         return p_shifted_1 if p1_camera_distance < p2_camera_distance else p_shifted_2
 
+    def __str__(self):
+        return '{}--{}--{}'.format(self.p2, self.p1, self.p3)
 
 class Light:
     def __init__(self, position):
@@ -251,59 +268,135 @@ class Light:
         self.specular = Vector(1, 1, 1)
 
 
-SCREEN_WIDTH = 800
-SCREEN_HEIGHT = 400
-SCREEN_DISTANCE = 1000
-screen = Screen(SCREEN_WIDTH, SCREEN_HEIGHT, SCREEN_DISTANCE)
+class Cube:
+    def __init__(self, center, side_length, material):
+        self.center = center
+        self.side_length = side_length
+        self.material = material
+        self.x_rotation = 0
+        self.y_rotation = 0
+        self.z_rotation = 0
 
-CAMERA_X = 0
-CAMERA_Y = SCREEN_HEIGHT/2
-CAMERA_Z = 0
-camera_position = Point(CAMERA_X, CAMERA_Y, CAMERA_Z)
+    def _point(self, x, y, z):
+        rotated_x = x * self.side_length / 2
+        rotated_y = y * self.side_length / 2
+        rotated_z = z * self.side_length / 2
 
-COLOUR_BLACK = (0, 0, 0)
+        # apply z-axis rotation
+        rotated_x, rotated_y = rotated_x * math.cos(self.z_rotation) - rotated_y * math.sin(self.z_rotation), rotated_x * math.sin(self.z_rotation) + rotated_y * math.cos(self.z_rotation)
 
-scene = Scene(screen, camera_position, COLOUR_BLACK)
+        # apply y-axis rotation
+        rotated_x, rotated_z = rotated_x * math.cos(self.y_rotation) + rotated_z * math.sin(self.y_rotation), -rotated_x * math.sin(self.y_rotation) + rotated_z * math.cos(self.y_rotation)
 
-floor = Rectangle(
-    Point(-SCREEN_WIDTH/2, -SCREEN_HEIGHT/2, SCREEN_DISTANCE),
-    Point(-SCREEN_WIDTH/2, -SCREEN_HEIGHT/2, SCREEN_DISTANCE + SCREEN_WIDTH * 20),
-    Point( SCREEN_WIDTH/2, -SCREEN_HEIGHT/2, SCREEN_DISTANCE)
-)
-scene.add_object(floor)
+        # apply x-axis rotation
+        rotated_y, rotated_z = rotated_y * math.cos(self.x_rotation) - rotated_z * math.sin(self.x_rotation), rotated_y * math.sin(self.x_rotation) + rotated_z * math.cos(self.x_rotation)
 
-s = 50
-cube_center = (0, -SCREEN_HEIGHT/2 + s, SCREEN_DISTANCE + SCREEN_WIDTH)
+        return Point(
+            rotated_x + self.center.x,
+            rotated_y + self.center.y,
+            rotated_z + self.center.z
+        )
 
-def point(x,y,z):
-    return Point(cube_center[0] + x + 5, cube_center[1] + y + 5, cube_center[2] + z + 5)
+    def _get_top_face(self):
+        return Rectangle(
+            self._point(-1, 1, -1),
+            self._point(-1, 1,  1),
+            self._point( 1, 1, -1),
+            self.material
+        )
 
-top_face = Rectangle(
-    point(-s, s, 0),
-    point(0, s, -s),
-    point(0, s, s)
-)
-scene.add_object(top_face)
+    def _get_bottom_face(self):
+        return Rectangle(
+            self._point(-1, -1, -1),
+            self._point(-1, -1,  1),
+            self._point( 1, -1, -1),
+            self.material
+        )
 
-right_face = Rectangle(
-    point(0, s, -s),
-    point(0, s * (1 - math.sqrt(2)), -s),
-    point(s, s, 0)
-)
-scene.add_object(right_face)
+    def _get_front_face(self):
+        return Rectangle(
+            self._point(-1,  1, -1),
+            self._point( 1,  1, -1),
+            self._point(-1, -1, -1),
+            self.material
+        )
 
-left_face = Rectangle(
-    point(0, s, -s),
-    point(0,  s * (1 - math.sqrt(2)), -s),
-    point(-s, s, 0)
-)
-scene.add_object(left_face)
+    def _get_back_face(self):
+        return Rectangle(
+            self._point(-1,  1, 1),
+            self._point( 1,  1, 1),
+            self._point(-1, -1, 1),
+            self.material
+        )
 
-light_position = Point(SCREEN_WIDTH/4,SCREEN_HEIGHT,SCREEN_DISTANCE / 2)
-light = Light(light_position)
-scene.add_light(light)
+    def _get_left_face(self):
+        return Rectangle(
+            self._point(-1,  1, -1),
+            self._point(-1,  1,  1),
+            self._point(-1, -1, -1),
+            self.material
+        )
 
-for i in range(1000):
-    light.position.z += 10
-    light.position.x -= 1
-    scene.render('output{:05}.png'.format(i))
+    def _get_right_face(self):
+        return Rectangle(
+            self._point(1,  1, -1),
+            self._point(1,  1,  1),
+            self._point(1, -1, -1),
+            self.material
+        )
+
+    def get_rectangles(self):
+        return self._get_back_face(), self._get_front_face(), self._get_left_face(), self._get_right_face(), self._get_top_face(), self._get_bottom_face()
+
+
+if __name__ == '__main__':
+    SCREEN_WIDTH = 400
+    SCREEN_HEIGHT = 200
+    SCALE = 2
+    SCREEN_DISTANCE = 1000
+    screen = Screen(SCREEN_WIDTH, SCREEN_HEIGHT, SCREEN_DISTANCE)
+
+    CAMERA_X = 0
+    CAMERA_Y = SCREEN_HEIGHT
+    CAMERA_Z = 0
+    camera_position = Point(CAMERA_X, CAMERA_Y, CAMERA_Z)
+
+    COLOUR_BLACK = (0, 0, 0)
+
+    scene = Scene(screen, camera_position, COLOUR_BLACK)
+
+    floor_material = Material(
+        (0.1, 0.1, 0.2),
+        (0.5, 0.5, 0.7),
+        (0.5, 0.5, 0.7),
+        100
+    )
+    cube_material = Material(
+        (0.5, 0.5, 0.5),
+        (1, 1, 0),
+        (0.8, 0.5, 0.5),
+        100
+    )
+
+    cube = Cube(Point(0, 0, SCREEN_DISTANCE + SCREEN_WIDTH), 50, cube_material)
+
+    floor = Rectangle(
+        Point(-SCREEN_WIDTH/2, -SCREEN_HEIGHT/2, SCREEN_DISTANCE),
+        Point(-SCREEN_WIDTH/2, -SCREEN_HEIGHT/2, SCREEN_DISTANCE + SCREEN_WIDTH * 2),
+        Point( SCREEN_WIDTH/2, -SCREEN_HEIGHT/2, SCREEN_DISTANCE),
+        floor_material
+    )
+
+    light_position = Point(SCREEN_WIDTH,SCREEN_HEIGHT,SCREEN_DISTANCE / 2)
+    light = Light(light_position)
+    scene.add_light(light)
+
+    for i in range(1000):
+        scene.clear_objects()
+        cube.y_rotation += math.pi / 100
+        cube.x_rotation += math.pi / 100
+        [scene.add_object(rect) for rect in cube.get_rectangles()]
+        scene.add_object(floor)
+        light.position.z += 10
+        light.position.x -= 3
+        scene.render('images/output{:05}.png'.format(i))
