@@ -1,5 +1,6 @@
 import math
 from vector import Vector, Point
+
 EPSILON = 0.1
 
 

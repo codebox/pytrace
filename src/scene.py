@@ -3,6 +3,7 @@ from PIL import Image, ImageDraw
 import numpy as np
 import signal, cv2
 
+
 class Scene:
     def __init__(self, screen, camera_position, background_colour, scale):
         self.screen = screen
@@ -114,13 +115,13 @@ class Scene:
         def on_user_stop(_1, _2):
             nonlocal user_stop
             user_stop = True
-            print('stopping...')
+            print('Stopping...')
 
         signal.signal(signal.SIGINT, on_user_stop)
 
-
+        print('Rendering video, press Ctrl-C to finish early')
         while step <= step_count and not user_stop:
-            print('calculating frame {}'.format(step))
+            print('Calculating frame {}'.format(step))
             video_writer.write(cv2.cvtColor(np.asarray(image), cv2.COLOR_BGR2RGB))
             on_tick(self)
             image = self._get_image()
@@ -134,4 +135,3 @@ class Screen:
         self.width = width
         self.height = height
         self.distance = distance
-

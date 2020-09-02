@@ -48,8 +48,6 @@ if __name__ == '__main__':
     light = Light(light_position)
     scene.add_light(light)
 
-    # for i in range(1000):
-
     def update(scene):
         scene.clear_objects()
         cube.y_rotation += math.pi / 100

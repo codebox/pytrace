@@ -1,5 +1,6 @@
 from vector import Vector
 
+
 class Light:
     def __init__(self, position):
         self.position = position
