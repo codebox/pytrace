@@ -91,7 +91,7 @@ class Scene:
 
         return self.background_colour
 
-    def _get_image(self):
+    def to_image(self):
         image = Image.new('RGB', (self.screen.width * self.scale, self.screen.height * self.scale), self.background_colour)
         for x in range(self.screen.width * self.scale):
             for y in range(self.screen.height * self.scale):
@@ -100,34 +100,6 @@ class Scene:
                 image.putpixel((x, self.screen.height * self.scale - y - 1), self._calculate_pixel_colour(scaled_x, scaled_y))
 
         return image
-
-    def render_to_image(self, output_file):
-        image = self._get_image()
-        image.save(output_file)
-
-    def render_to_video(self, output_file, on_tick, step_count, fps=24):
-        step = 1
-
-        image = self._get_image()
-        video_writer = cv2.VideoWriter(output_file, cv2.VideoWriter_fourcc(*'MP4V'), fps, image.size)
-
-        user_stop = False
-        def on_user_stop(_1, _2):
-            nonlocal user_stop
-            user_stop = True
-            print('Stopping...')
-
-        signal.signal(signal.SIGINT, on_user_stop)
-
-        print('Rendering video, press Ctrl-C to finish early')
-        while step <= step_count and not user_stop:
-            print('Calculating frame {}'.format(step))
-            video_writer.write(cv2.cvtColor(np.asarray(image), cv2.COLOR_BGR2RGB))
-            on_tick(self)
-            image = self._get_image()
-            step += 1
-
-        video_writer.release()
 
 
 class Screen:

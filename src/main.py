@@ -4,6 +4,7 @@ from material import Material
 from light import Light
 from scene import Scene, Screen
 from vector import Point
+from renderer import ImageRenderer, VideoRenderer
 
 
 if __name__ == '__main__':
@@ -48,6 +49,9 @@ if __name__ == '__main__':
     light = Light(light_position)
     scene.add_light(light)
 
+    scene.add_object(cube)
+    scene.add_object(floor)
+
     def update(scene):
         scene.clear_objects()
         cube.y_rotation += math.pi / 100
@@ -57,4 +61,4 @@ if __name__ == '__main__':
         light.position.z += 10
         light.position.x -= 3
 
-    scene.render_to_video('out.mp4', update, 10)
+    VideoRenderer(scene).render('r.mp4', 5, update)
