@@ -135,7 +135,7 @@ class Workers:
         self.stop_token = 'STOP'
 
         for i in range(self.worker_count):
-            self.threads.append(Process(target=work_function))
+            self.threads.append(Process(target=work_function, daemon=True))
 
     def start(self):
         [thread.start() for thread in self.threads]
