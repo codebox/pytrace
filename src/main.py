@@ -24,19 +24,21 @@ if __name__ == '__main__':
     scene = Scene(screen, camera_position, COLOUR_BLACK, SCALE)
 
     floor_material = Material(
-        (0.1, 0.1, 0.2),
-        (0.5, 0.5, 0.7),
-        (0.5, 0.5, 0.7),
+        (255, 255, 255),
+        (0.5, 0.5, 0.5),
+        (0.5, 0.5, 0.5),
+        (0.5, 0.5, 0.5),
         100
     )
-    cube_material = Material(
+    cube1_material = Material(
+        (255,100,50),
         (0.5, 0.5, 0.5),
-        (1, 1, 0),
-        (0.8, 0.5, 0.5),
+        (1, 1, 1),
+        (0.5, 0.5, 0.5),
         100
     )
 
-    cube = Cube(Point(0, 0, SCREEN_DISTANCE + SCREEN_WIDTH), 50, cube_material)
+    cube = Cube(Point(0, 0, SCREEN_DISTANCE + SCREEN_WIDTH), 50, cube1_material)
 
     floor = Rectangle(
         Point(-SCREEN_WIDTH/2, -SCREEN_HEIGHT/2, SCREEN_DISTANCE),
@@ -52,13 +54,4 @@ if __name__ == '__main__':
     scene.add_object(cube)
     scene.add_object(floor)
 
-    def update(scene):
-        scene.clear_objects()
-        cube.y_rotation += math.pi / 100
-        cube.x_rotation += math.pi / 100
-        scene.add_object(cube)
-        scene.add_object(floor)
-        light.position.z += 10
-        light.position.x -= 3
-
-    VideoRenderer(scene).render('r.mp4', 5, update)
+    ImageRenderer(scene).render('trace.png')
