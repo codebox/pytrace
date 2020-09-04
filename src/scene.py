@@ -1,6 +1,6 @@
 from vector import Line, Vector, Point
 from PIL import Image, ImageDraw
-from multiprocessing import Process, Queue, JoinableQueue, cpu_count
+import numpy as np
 
 
 class Scene:
@@ -91,58 +91,13 @@ class Scene:
         return self.background_colour
 
     def to_image(self):
-        work_queue = JoinableQueue()
-        finished_queue = Queue()
-
-        def calculate_pixel_colours():
-            results = []
-            while True:
-                work_item = work_queue.get()
-                if work_item == workers.stop_token:
-                    work_queue.task_done()
-                    break
-                x, y = work_item
-                colour = self._calculate_pixel_colour(x / self.scale, y / self.scale)
-                results.append((x, y, colour))
-                work_queue.task_done()
-            finished_queue.put(results)
-
-        workers = Workers(work_queue, calculate_pixel_colours)
-        workers.start()
-
         image = Image.new('RGB', (self.screen.width * self.scale, self.screen.height * self.scale), self.background_colour)
         for x in range(self.screen.width * self.scale):
             for y in range(self.screen.height * self.scale):
-                work_queue.put((x, y))
-
-        workers.stop()
-
-        result_count = 0
-        while result_count < workers.worker_count:
-            for result in finished_queue.get():
-                x, y, colour = result
+                colour = self._calculate_pixel_colour(x / self.scale, y / self.scale)
                 image.putpixel((x, self.screen.height * self.scale - y - 1), colour)
-            result_count += 1
 
         return image
-
-
-class Workers:
-    def __init__(self, work_queue, work_function):
-        self.threads = []
-        self.work_queue = work_queue
-        self.worker_count = max(1, cpu_count() - 1)
-        self.stop_token = 'STOP'
-
-        for i in range(self.worker_count):
-            self.threads.append(Process(target=work_function, daemon=True))
-
-    def start(self):
-        [thread.start() for thread in self.threads]
-
-    def stop(self):
-        for _ in self.threads:
-            self.work_queue.put(self.stop_token)
 
 
 class Screen:
