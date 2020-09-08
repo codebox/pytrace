@@ -90,8 +90,11 @@ class Scene:
 
         return self.background_colour
 
+    def _calculate_pixel_colour_np(self, points):
+
     def to_image(self):
         image = Image.new('RGB', (self.screen.width * self.scale, self.screen.height * self.scale), self.background_colour)
+        screen = np.zeros((self.screen.width * self.scale, self.screen.height * self.scale))
         for x in range(self.screen.width * self.scale):
             for y in range(self.screen.height * self.scale):
                 colour = self._calculate_pixel_colour(x / self.scale, y / self.scale)
