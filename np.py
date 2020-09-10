@@ -61,22 +61,30 @@ rays = np.subtract(pixel_coords, camera_position)
 
 # intersections = [object.get_intersection_points(camera_position, rays) for object in objects]
 
+# intersections = np.array([object.get_intersection_points(camera_position, rays) for object in objects])
+# intersections_with_pixels = np.append(intersections, [pixel_coords], axis=0)
+
+# print(intersections_with_pixels)
+
+# mask = intersections[:,0].any(axis=1)
+# print(mask)
+
+background_colour = np.full((h, w, 3), (0,0,0))
 for object in objects:
+    object_colour = np.full((h, w, 3), (255,0,0))
     intersections = object.get_intersection_points(camera_position, rays)
     intersections_with_pixels = np.stack((intersections, pixel_coords), axis=1)
-    # print(intersections_with_pixels)
     mask = intersections_with_pixels[:,0].any(axis=1)
-    print(mask)
+    print(intersections_with_pixels[:,0])
     hits = np.compress(mask, intersections_with_pixels, axis=0)
-    print(hits)
-    # print(np.extract(intersections_with_pixels[0] == 0, intersections_with_pixels))
-    # print(np.extract(np.compress(np.all(intersections_with_pixels[0] == 0), intersections_with_pixels, axis=0)))
-    # actual = np.extract(intersections != [0,0,0], intersections)
-    #
-    # intersections_to_light = np.subtract(intersections, light_position)
-    # print(intersections_to_light)
+
+    colours = np.where(mask, background_colour, object_colour)
+    # distances = hits
+    # print(intersections_with_pixels)
+    # print(hits)
 
 
-# img = Image.fromarray(points, 'RGB')
+print(colours.shape)
+# img = Image.fromarray(colours, 'RGB')
 # img.save('my.png')
 # img.show()
