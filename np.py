@@ -1,8 +1,8 @@
 import numpy as np
 from PIL import Image
 
-w=100
-h=100
+w=3
+h=3
 x_range=3
 y_range=3
 SCREEN_DISTANCE = 4
@@ -55,66 +55,66 @@ class Rect:
 
         return np.where(np.repeat(c3[:,np.newaxis], 3, axis=1), intersection, np.nan)
 
-rect1 = Rect((0,0,-1), (-1, -1, SCREEN_DISTANCE + 5), (-1, 1, SCREEN_DISTANCE + 5), (1, -1, SCREEN_DISTANCE + 5))
+rect1 = Rect((0,0,-1), (-1, -1, SCREEN_DISTANCE + 7), (-1, 10, SCREEN_DISTANCE + 7), (10, -1, SCREEN_DISTANCE + 7))
 rect2 = Rect((0,0,-1), (-1, -1, SCREEN_DISTANCE + 6), (-1, 1, SCREEN_DISTANCE + 6), (1, -1, SCREEN_DISTANCE + 6))
 
 objects = [rect1, rect2]
 rays = np.subtract(pixel_coords, camera_position)
 
-# intersections = [object.get_intersection_points(camera_position, rays) for object in objects]
+intersections = np.array([object.get_intersection_points(camera_position, rays) for object in objects]).astype(np.float64)
+print(intersections)
 
-# intersections = np.array([object.get_intersection_points(camera_position, rays) for object in objects])
-# intersections_with_pixels = np.append(intersections, [pixel_coords], axis=0)
+distances = np.linalg.norm(intersections, axis=2)
+print(distances)
 
-# print(intersections_with_pixels)
+object_indexes_with_smallest_distances = np.argmin(distances, axis=0)
+print(object_indexes_with_smallest_distances)
 
-# mask = intersections[:,0].any(axis=1)
-# print(mask)
+mask_for_all_nan_pixels = np.isnan(distances).all(axis=0)
+print(mask_for_all_nan_pixels)
 
-background_colour = np.full((h, w, 3), (0,0,0))
-for object in objects:
-    object_colour = np.full((h, w, 3), (255,0,0))
+object_indexes_with_smallest_distances_and_hits = np.where(~mask_for_all_nan_pixels, object_indexes_with_smallest_distances, np.nan)
+print(object_indexes_with_smallest_distances_and_hits)
 
-    '''
-    [[nan nan nan]
-     [nan nan nan]
-     [nan nan nan]
-     [nan nan nan]
-     [0.0 0.0 -9.0]
-     [nan nan nan]
-     [nan nan nan]
-     [nan nan nan]
-     [nan nan nan]]
-    '''
-    intersections = object.get_intersection_points(camera_position, rays)
+# colours = np.choose(object_indexes_with_smallest_distances)
+# indexes_of_closest_intersections =
 
-    # '''
-    # [[[nan nan nan]  [-1.5 -1.5 4.0]]
-    #  [[nan nan nan]  [ 0.0 -1.5 4.0]]
-    #  [[nan nan nan]  [ 1.5 -1.5 4.0]]
-    #  [[nan nan nan]  [-1.5  0.0 4.0]]
-    #  [[0.0 0.0 -9.0] [ 0.0  0.0 4.0]]
-    #  [[nan nan nan]  [ 1.5  0.0 4.0]]
-    #  [[nan nan nan]  [-1.5  1.5 4.0]]
-    #  [[nan nan nan]  [ 0.0  1.5 4.0]]
-    #  [[nan nan nan]  [ 1.5  1.5 4.0]]]
-    #
-    # '''
-    # intersections_with_pixels = np.stack((intersections, pixel_coords), axis=1)
+# intersections = np.array([np.reshape(object.get_intersection_points(camera_position, rays), (h,w,3)) for object in objects])
+# print(intersections)
+#
+# intersections_as_grid = np.reshape(intersections, (h,w,3))
 
-    '''
-    [[[nan nan nan] [nan nan nan]  [nan nan nan]]
-     [[nan nan nan] [0.0 0.0 -9.0] [nan nan nan]]
-     [[nan nan nan] [nan nan nan]  [nan nan nan]]]
-    '''
-    intersections_with_pixels_as_grid = np.reshape(intersections, (h,w,3))
-
-    colours = np.where(np.isnan(intersections_with_pixels_as_grid.astype(np.float64)), background_colour, object_colour)
-    # distances = hits
-    # print(intersections_with_pixels)
-    # print(hits)
-
-
-img = Image.fromarray(colours.astype(np.uint8), 'RGB')
-img.save('my.png')
-img.show()
+# background_colour = np.full((h, w, 3), (0,0,0))
+#
+# object_colour = np.full((h, w, 3), (255,0,0))
+#
+# '''
+# [[nan nan nan]
+#  [nan nan nan]
+#  [nan nan nan]
+#  [nan nan nan]
+#  [0.0 0.0 -9.0]
+#  [nan nan nan]
+#  [nan nan nan]
+#  [nan nan nan]
+#  [nan nan nan]]
+# '''
+# intersections = object.get_intersection_points(camera_position, rays)
+#
+#
+# '''
+# [[[nan nan nan] [nan nan nan]  [nan nan nan]]
+#  [[nan nan nan] [0.0 0.0 -9.0] [nan nan nan]]
+#  [[nan nan nan] [nan nan nan]  [nan nan nan]]]
+# '''
+# intersections_with_pixels_as_grid = np.reshape(intersections, (h,w,3))
+#
+# colours = np.where(np.isnan(intersections_with_pixels_as_grid.astype(np.float64)), background_colour, object_colour)
+# # distances = hits
+# # print(intersections_with_pixels)
+# # print(hits)
+#
+#
+# img = Image.fromarray(colours.astype(np.uint8), 'RGB')
+# img.save('my.png')
+# img.show()
