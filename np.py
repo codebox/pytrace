@@ -1,13 +1,15 @@
 import numpy as np
 from PIL import Image
 
-w=3
-h=3
+w=100
+h=100
+x_range=3
+y_range=3
 SCREEN_DISTANCE = 4
 
 
-x = np.linspace(-w/2, w/2, w)
-y = np.linspace(-h/2, h/2, h)
+x = np.linspace(-x_range/2, x_range/2, w)
+y = np.linspace(-y_range/2, y_range/2, h)
 
 xs = np.tile(x, len(y))
 ys = np.repeat(y, len(x))
@@ -51,7 +53,7 @@ class Rect:
         c2 = np.logical_and(0 < am_dot_ad, am_dot_ad < ad_dot_ad)
         c3 = np.logical_and(c1, c2)
 
-        return np.where(np.repeat(c3[:,np.newaxis], 3, axis=1), intersection, 0)
+        return np.where(np.repeat(c3[:,np.newaxis], 3, axis=1), intersection, np.nan)
 
 rect1 = Rect((0,0,-1), (-1, -1, SCREEN_DISTANCE + 5), (-1, 1, SCREEN_DISTANCE + 5), (1, -1, SCREEN_DISTANCE + 5))
 rect2 = Rect((0,0,-1), (-1, -1, SCREEN_DISTANCE + 6), (-1, 1, SCREEN_DISTANCE + 6), (1, -1, SCREEN_DISTANCE + 6))
@@ -72,19 +74,47 @@ rays = np.subtract(pixel_coords, camera_position)
 background_colour = np.full((h, w, 3), (0,0,0))
 for object in objects:
     object_colour = np.full((h, w, 3), (255,0,0))
-    intersections = object.get_intersection_points(camera_position, rays)
-    intersections_with_pixels = np.stack((intersections, pixel_coords), axis=1)
-    mask = intersections_with_pixels[:,0].any(axis=1)
-    print(intersections_with_pixels[:,0])
-    hits = np.compress(mask, intersections_with_pixels, axis=0)
 
-    colours = np.where(mask, background_colour, object_colour)
+    '''
+    [[nan nan nan]
+     [nan nan nan]
+     [nan nan nan]
+     [nan nan nan]
+     [0.0 0.0 -9.0]
+     [nan nan nan]
+     [nan nan nan]
+     [nan nan nan]
+     [nan nan nan]]
+    '''
+    intersections = object.get_intersection_points(camera_position, rays)
+
+    # '''
+    # [[[nan nan nan]  [-1.5 -1.5 4.0]]
+    #  [[nan nan nan]  [ 0.0 -1.5 4.0]]
+    #  [[nan nan nan]  [ 1.5 -1.5 4.0]]
+    #  [[nan nan nan]  [-1.5  0.0 4.0]]
+    #  [[0.0 0.0 -9.0] [ 0.0  0.0 4.0]]
+    #  [[nan nan nan]  [ 1.5  0.0 4.0]]
+    #  [[nan nan nan]  [-1.5  1.5 4.0]]
+    #  [[nan nan nan]  [ 0.0  1.5 4.0]]
+    #  [[nan nan nan]  [ 1.5  1.5 4.0]]]
+    #
+    # '''
+    # intersections_with_pixels = np.stack((intersections, pixel_coords), axis=1)
+
+    '''
+    [[[nan nan nan] [nan nan nan]  [nan nan nan]]
+     [[nan nan nan] [0.0 0.0 -9.0] [nan nan nan]]
+     [[nan nan nan] [nan nan nan]  [nan nan nan]]]
+    '''
+    intersections_with_pixels_as_grid = np.reshape(intersections, (h,w,3))
+
+    colours = np.where(np.isnan(intersections_with_pixels_as_grid.astype(np.float64)), background_colour, object_colour)
     # distances = hits
     # print(intersections_with_pixels)
     # print(hits)
 
 
-print(colours.shape)
-# img = Image.fromarray(colours, 'RGB')
-# img.save('my.png')
-# img.show()
+img = Image.fromarray(colours.astype(np.uint8), 'RGB')
+img.save('my.png')
+img.show()
