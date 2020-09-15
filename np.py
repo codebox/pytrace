@@ -22,11 +22,12 @@ light_position = np.array([-w/2, h/2, SCREEN_DISTANCE])
 
 
 class Rect:
-    def __init__(self, normal, p1, p2, p3):
+    def __init__(self, normal, p1, p2, p3, rgb):
         self.normal = np.array(normal)
         self.p1 = np.array(p1)
         self.p2 = np.array(p2)
         self.p3 = np.array(p3)
+        self.rgb = rgb
 
     def get_intersection_points(self, ray_origin, ray_directions):
         ray_magnitudes = np.linalg.norm(ray_directions, axis=1)
@@ -55,26 +56,42 @@ class Rect:
 
         return np.where(np.repeat(c3[:,np.newaxis], 3, axis=1), intersection, np.nan)
 
-rect1 = Rect((0,0,-1), (-1, -1, SCREEN_DISTANCE + 7), (-1, 10, SCREEN_DISTANCE + 7), (10, -1, SCREEN_DISTANCE + 7))
-rect2 = Rect((0,0,-1), (-1, -1, SCREEN_DISTANCE + 6), (-1, 1, SCREEN_DISTANCE + 6), (1, -1, SCREEN_DISTANCE + 6))
+rect1 = Rect((0,0,-1), (-1, -1, SCREEN_DISTANCE + 7), (-1, 10, SCREEN_DISTANCE + 7), (10, -1, SCREEN_DISTANCE + 7), (255,0,0))
+rect2 = Rect((0,0,-1), (-1, -1, SCREEN_DISTANCE + 6),  (-1, 1, SCREEN_DISTANCE + 6),  (1, -1, SCREEN_DISTANCE + 6), (0,255,0))
 
 objects = [rect1, rect2]
 rays = np.subtract(pixel_coords, camera_position)
 
 intersections = np.array([object.get_intersection_points(camera_position, rays) for object in objects]).astype(np.float64)
-print(intersections)
 
 distances = np.linalg.norm(intersections, axis=2)
-print(distances)
 
-object_indexes_with_smallest_distances = np.argmin(distances, axis=0)
-print(object_indexes_with_smallest_distances)
+FAR_AWAY=np.inf
+object_indexes_with_smallest_distances = np.argmin(np.nan_to_num(distances, nan=FAR_AWAY), axis=0)
 
 mask_for_all_nan_pixels = np.isnan(distances).all(axis=0)
-print(mask_for_all_nan_pixels)
 
 object_indexes_with_smallest_distances_and_hits = np.where(~mask_for_all_nan_pixels, object_indexes_with_smallest_distances, np.nan)
-print(object_indexes_with_smallest_distances_and_hits)
+
+pixel_colour_indexes = np.copy(object_indexes_with_smallest_distances_and_hits)
+pixel_colour_indexes[np.isnan(pixel_colour_indexes)] = len(objects)
+print(pixel_colour_indexes)
+
+background_rgb = (0,0,0)
+background_pixels = np.full((3,h * w), background_rgb)
+colour_choices = [np.full((3,h*w), object.rgb) for object in objects] + [background_pixels]
+print(colour_choices)
+# print(pixel_colour_indexes.shape, colour_choices.shape)
+colours = np.choose(pixel_colour_indexes.astype(np.int), colour_choices)
+
+# pixel_colours_for_hits = np.choose(pixel_colour_indexes, ...)
+
+# colour_choices = np.array()
+# background_rgb = (0,0,0)
+# pixels = np.full((h * w, 3), background_rgb)
+# for i in range(len(objects)):
+#     colour = objects[i].rgb
+#     pixels = np.choose()
 
 # colours = np.choose(object_indexes_with_smallest_distances)
 # indexes_of_closest_intersections =
