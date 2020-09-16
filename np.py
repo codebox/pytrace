@@ -20,16 +20,23 @@ pixel_coords = np.transpose([xs, ys, zs])
 
 light_position = np.array([-w/2, h/2, SCREEN_DISTANCE])
 
+class Material:
+    def __init__(self, rgb, ambient, diffuse, specular, alpha):
+        self.rgb = np.array(rgb)
+        self.ambient = self.rgb * np.array(ambient)
+        self.diffuse = self.rgb * np.array(diffuse)
+        self.specular = self.rgb * np.array(specular)
+        self.alpha = alpha
 
 class Rect:
-    def __init__(self, p1, p2, p3, rgb):
+    def __init__(self, p1, p2, p3, material):
         self.p1 = np.array(p1)
         self.p2 = np.array(p2)
         self.p3 = np.array(p3)
 
         normal = np.cross(self.p2-self.p1, self.p3-self.p1)
         self.normal = normal / np.linalg.norm(normal)
-        self.rgb = rgb
+        self.material = material
 
     def get_intersection_points(self, ray_origin, ray_directions):
         ray_magnitudes = np.linalg.norm(ray_directions, axis=1)
@@ -58,8 +65,11 @@ class Rect:
 
         return np.where(np.repeat(c3[:,np.newaxis], 3, axis=1), intersection, np.nan)
 
-rect1 = Rect((-1, -1, SCREEN_DISTANCE + 7), (-1, 10, SCREEN_DISTANCE + 7), (10, -1, SCREEN_DISTANCE + 7), (255,0,0))
-rect2 = Rect((-1, -1, SCREEN_DISTANCE + 6),  (-1, 1, SCREEN_DISTANCE + 6),  (1, -1, SCREEN_DISTANCE + 6), (0,255,0))
+red_material   = Material((255,0,0), (0.5, 0.5, 0.5), (0.8, 0.8, 0.8), (0.5, 0.5, 0.5), 50)
+rect1 = Rect((-1, -1, SCREEN_DISTANCE + 7), (-1, 10, SCREEN_DISTANCE + 7), (10, -1, SCREEN_DISTANCE + 7), red_material)
+
+green_material = Material((0,255,0), (0.5, 0.5, 0.5), (0.8, 0.8, 0.8), (0.5, 0.5, 0.5), 50)
+rect2 = Rect((-1, -1, SCREEN_DISTANCE + 6),  (-1, 1, SCREEN_DISTANCE + 6),  (1, -1, SCREEN_DISTANCE + 6), green_material)
 
 objects = [rect1, rect2]
 rays = np.subtract(pixel_coords, camera_position)
@@ -82,7 +92,7 @@ pixel_colour_indexes[np.isnan(pixel_colour_indexes)] = len(objects)
 background_rgb = (0,0,0)
 colours = np.full((h * w,3), background_rgb)
 for i in range(len(objects)):
-    colours = np.where(np.transpose(np.array([pixel_colour_indexes==i] * 3)), np.full((h*w,3), objects[i].rgb), colours)
+    colours = np.where(np.transpose(np.array([pixel_colour_indexes==i] * 3)), np.full((h*w,3), objects[i].material.rgb), colours)
 print(colours)
 
 # colour_choices = np.array([np.full((h*w,3), object.rgb) for object in objects] + [background_pixels])
