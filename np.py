@@ -1,8 +1,8 @@
 import numpy as np
 from PIL import Image
 
-w=3
-h=3
+w=30
+h=30
 x_range=3
 y_range=3
 SCREEN_DISTANCE = 4
@@ -75,14 +75,22 @@ object_indexes_with_smallest_distances_and_hits = np.where(~mask_for_all_nan_pix
 
 pixel_colour_indexes = np.copy(object_indexes_with_smallest_distances_and_hits)
 pixel_colour_indexes[np.isnan(pixel_colour_indexes)] = len(objects)
-print(pixel_colour_indexes)
+
 
 background_rgb = (0,0,0)
-background_pixels = np.full((3,h * w), background_rgb)
-colour_choices = [np.full((3,h*w), object.rgb) for object in objects] + [background_pixels]
-print(colour_choices)
-# print(pixel_colour_indexes.shape, colour_choices.shape)
-colours = np.choose(pixel_colour_indexes.astype(np.int), colour_choices)
+colours = np.full((h * w,3), background_rgb)
+for i in range(len(objects)):
+    colours = np.where(np.transpose(np.array([pixel_colour_indexes==i] * 3)), np.full((h*w,3), objects[i].rgb), colours)
+print(colours)
+
+# colour_choices = np.array([np.full((h*w,3), object.rgb) for object in objects] + [background_pixels])
+# print(np.transpose(pixel_colour_indexes.astype(np.int)).shape, colour_choices[0].shape)
+# # print(pixel_colour_indexes.shape, colour_choices.shape)
+#
+# colours = np.array((*pixel_colour_indexes.shape,3))
+# print(colour_choices.ravel())
+# colours = np.take_along_axis(colour_choices.ravel(), pixel_colour_indexes.astype(np.int), axis=0)
+
 
 # pixel_colours_for_hits = np.choose(pixel_colour_indexes, ...)
 
@@ -132,6 +140,8 @@ colours = np.choose(pixel_colour_indexes.astype(np.int), colour_choices)
 # # print(hits)
 #
 #
-# img = Image.fromarray(colours.astype(np.uint8), 'RGB')
-# img.save('my.png')
-# img.show()
+
+colours = np.reshape(colours, (h,w,3))
+img = Image.fromarray(colours.astype(np.uint8), 'RGB')
+img.save('my.png')
+img.show()
