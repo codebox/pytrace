@@ -1,8 +1,8 @@
 import numpy as np
 from PIL import Image
 
-w=30
-h=30
+w=3
+h=3
 x_range=3
 y_range=3
 SCREEN_DISTANCE = 4
@@ -35,7 +35,7 @@ class Rect:
         self.p3 = np.array(p3)
 
         normal = np.cross(self.p2-self.p1, self.p3-self.p1)
-        self.normal = normal / np.linalg.norm(normal)
+        self.normal = normal / np.linalg.norm(normal, axis=1).reshape(-1,1)
         self.material = material
 
     def get_intersection_points(self, ray_origin, ray_directions):
@@ -46,35 +46,47 @@ class Rect:
 
         w = np.subtract(self.p1, ray_origin)
 
-        s1 = np.where(n_dot_u, -self.normal.dot(w) / n_dot_u, None)
+        x1 = np.einsum('ij,ij->i', self.normal, w)
+        x = -x1[:,None] / n_dot_u
+        s1 = np.where(n_dot_u, x, None)
 
-        intersection = np.where(s1 is None, np.zeros(3), w + np.transpose(s1 * rays_normalised) - self.p1)
+        x3 = np.transpose(s1[:,None] * rays_normalised, (2,0,1))
+        x2 = w + x3 - self.p1
+        intersection = np.where(s1 is None, np.zeros(3), x2)
 
-        a_m = np.subtract(intersection, self.p1)
-        a_b = np.repeat(np.subtract(self.p2, self.p1)[:,np.newaxis], len(a_m), axis=1).T
-        a_d = np.repeat(np.subtract(self.p3, self.p1)[:,np.newaxis], len(a_m), axis=1).T
+        a_m = np.transpose(np.subtract(intersection, self.p1), (1,0,2))
+        a_b = np.transpose(np.repeat(np.subtract(self.p2, self.p1)[:,np.newaxis], len(a_m[1]), axis=1).T, (2,1,0))
+        a_d = np.transpose(np.repeat(np.subtract(self.p3, self.p1)[:,np.newaxis], len(a_m[1]), axis=1).T, (2,1,0))
 
-        am_dot_ab = np.sum(a_m * a_b, axis=1)
-        ab_dot_ab = np.sum(a_b * a_b, axis=1)
-        am_dot_ad = np.sum(a_m * a_d, axis=1)
-        ad_dot_ad = np.sum(a_d * a_d, axis=1)
+        am_dot_ab = np.sum(a_m * a_b, axis=2)
+        ab_dot_ab = np.sum(a_b * a_b, axis=2)
+        am_dot_ad = np.sum(a_m * a_d, axis=2)
+        ad_dot_ad = np.sum(a_d * a_d, axis=2)
 
         c1 = np.logical_and(0 < am_dot_ab, am_dot_ab < ab_dot_ab)
         c2 = np.logical_and(0 < am_dot_ad, am_dot_ad < ad_dot_ad)
         c3 = np.logical_and(c1, c2)
 
-        return np.where(np.repeat(c3[:,np.newaxis], 3, axis=1), intersection, np.nan)
+        r = np.transpose(np.repeat(c3[:,np.newaxis], 3, axis=1),(0,2,1))
+        i = np.transpose(intersection, (1,0,2))
+        return np.where(r, i, np.nan)
+
+    def __len__(self):
+        return len(self.p1)
 
 red_material   = Material((255,0,0), (0.5, 0.5, 0.5), (0.8, 0.8, 0.8), (0.5, 0.5, 0.5), 50)
-rect1 = Rect((-1, -1, SCREEN_DISTANCE + 7), (-1, 10, SCREEN_DISTANCE + 7), (10, -1, SCREEN_DISTANCE + 7), red_material)
-
 green_material = Material((0,255,0), (0.5, 0.5, 0.5), (0.8, 0.8, 0.8), (0.5, 0.5, 0.5), 50)
-rect2 = Rect((-1, -1, SCREEN_DISTANCE + 6),  (-1, 1, SCREEN_DISTANCE + 6),  (1, -1, SCREEN_DISTANCE + 6), green_material)
 
-objects = [rect1, rect2]
+objects = Rect(
+    ((-1, -1, SCREEN_DISTANCE + 7), (-1, -1, SCREEN_DISTANCE + 6)),
+    ((-1, 10, SCREEN_DISTANCE + 7), (-1,  1, SCREEN_DISTANCE + 6)),
+    ((10, -1, SCREEN_DISTANCE + 7), ( 1, -1, SCREEN_DISTANCE + 6)),
+    (red_material, green_material)
+)
+
 rays = np.subtract(pixel_coords, camera_position)
 
-intersections = np.array([object.get_intersection_points(camera_position, rays) for object in objects]).astype(np.float64)
+intersections = objects.get_intersection_points(camera_position, rays).astype(np.float64)
 
 distances = np.linalg.norm(intersections, axis=2)
 
@@ -90,9 +102,8 @@ pixel_colour_indexes[np.isnan(pixel_colour_indexes)] = len(objects)
 
 
 background_rgb = (0,0,0)
-colours = np.full((h * w,3), background_rgb)
-for i in range(len(objects)):
-    colours = np.where(np.transpose(np.array([pixel_colour_indexes==i] * 3)), np.full((h*w,3), objects[i].material.rgb), colours)
+material_colours = np.vstack([[m.rgb for m in objects.material], background_rgb])
+colours = material_colours[pixel_colour_indexes.astype(int)]
 print(colours)
 
 # colour_choices = np.array([np.full((h*w,3), object.rgb) for object in objects] + [background_pixels])
